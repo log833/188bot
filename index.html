@@ -64,18 +64,20 @@ function log(text) {
   chat.scrollTop = chat.scrollHeight;
 }
 
+function clamp(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+
 document.getElementById("upload").addEventListener("change", e => {
   const file = e.target.files[0];
   if (!file) return;
 
-  imageLoaded = false;
   img = new Image();
   img.src = URL.createObjectURL(file);
 
   img.onload = () => {
     canvas.width = img.width;
     canvas.height = img.height;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0);
     imageLoaded = true;
     log("188Bot: Image Uploaded.");
@@ -84,15 +86,28 @@ document.getElementById("upload").addEventListener("change", e => {
 
 function run() {
   const input = document.getElementById("command");
-  const cmd = input.value.trim();
+  const cmdRaw = input.value.trim();
   input.value = "";
+  if (!cmdRaw) return;
 
-  if (!cmd) return;
+  log("User: " + cmdRaw);
 
-  log("User: " + cmd);
+  const parts = cmdRaw.split(" ");
+  const cmd = parts[0];
+  let value = parseFloat(parts[1]);
+  if (isNaN(value)) value = 10;
 
   if (cmd === ",help") {
-    log("188Bot: Commands: invert, wave, swirl, pixelate, grayscale.");
+    log("188Bot: Commands: invert, grayscale, pixelate [0–100], swirl [-100–100], wavewarp [-100–100], whatsnew.");
+    return;
+  }
+
+  if (cmd === ",whatsnew") {
+    log("188Bot: UPDATES:");
+    log("Added whatsnew");
+    log('Replaced "wave" To "wave warp"');
+    log("Added Values For These 3 Effects");
+    log("- 188Bot v1.0.1");
     return;
   }
 
@@ -103,22 +118,22 @@ function run() {
 
   if (cmd === ",invert") invert();
   else if (cmd === ",grayscale") grayscale();
-  else if (cmd === ",pixelate") pixelate();
-  else if (cmd === ",wave") wave();
-  else if (cmd === ",swirl") swirl();
+  else if (cmd === ",pixelate") pixelate(clamp(value, 0, 100));
+  else if (cmd === ",wavewarp") waveWarp(clamp(value, -100, 100));
+  else if (cmd === ",swirl") swirl(clamp(value, -100, 100));
   else {
     log('188Bot: Unknown Command, "Type ,help" For Available Commands.');
   }
 }
 
 function invert() {
-  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  for (let i = 0; i < data.data.length; i += 4) {
-    data.data[i] = 255 - data.data[i];
-    data.data[i+1] = 255 - data.data[i+1];
-    data.data[i+2] = 255 - data.data[i+2];
+  const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < d.data.length; i += 4) {
+    d.data[i] = 255 - d.data[i];
+    d.data[i+1] = 255 - d.data[i+1];
+    d.data[i+2] = 255 - d.data[i+2];
   }
-  ctx.putImageData(data, 0, 0);
+  ctx.putImageData(d, 0, 0);
   log("188Bot: Invert Added.");
 }
 
@@ -132,8 +147,8 @@ function grayscale() {
   log("188Bot: Grayscale Added.");
 }
 
-function pixelate() {
-  const size = 10;
+function pixelate(val) {
+  const size = Math.max(1, Math.floor(val));
   for (let y = 0; y < canvas.height; y += size) {
     for (let x = 0; x < canvas.width; x += size) {
       const p = ctx.getImageData(x, y, 1, 1).data;
@@ -141,20 +156,21 @@ function pixelate() {
       ctx.fillRect(x, y, size, size);
     }
   }
-  log("188Bot: Pixelate Added.");
+  log("188Bot: Pixelate Added (" + val + ").");
 }
 
-function wave() {
+function waveWarp(val) {
   const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
   for (let y = 0; y < canvas.height; y++) {
-    const offset = Math.sin(y / 20) * 10;
+    const offset = Math.sin(y / 20) * val;
     ctx.putImageData(imgData, offset, y, 0, y, canvas.width, 1);
   }
-  log("188Bot: Wave Added.");
+  log("188Bot: Wave Warp Added (" + val + ").");
 }
 
-function swirl() {
+function swirl(val) {
   const src = ctx.getImageData(0, 0, canvas.width, canvas.height);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -166,7 +182,7 @@ function swirl() {
       const dx = x - cx;
       const dy = y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      const angle = dist / 300;
+      const angle = dist / 300 * (val / 10);
 
       const sx = Math.cos(angle) * dx - Math.sin(angle) * dy + cx;
       const sy = Math.sin(angle) * dx + Math.cos(angle) * dy + cy;
@@ -178,10 +194,9 @@ function swirl() {
       }
     }
   }
-  log("188Bot: Swirl Added.");
+  log("188Bot: Swirl Added (" + val + ").");
 }
 </script>
 
 </body>
 </html>
-
