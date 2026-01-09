@@ -64,8 +64,8 @@ function log(text) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-function clamp(val, min, max) {
-  return Math.max(min, Math.min(max, val));
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
 }
 
 document.getElementById("upload").addEventListener("change", e => {
@@ -86,13 +86,13 @@ document.getElementById("upload").addEventListener("change", e => {
 
 function run() {
   const input = document.getElementById("command");
-  const cmdRaw = input.value.trim();
+  const raw = input.value.trim();
   input.value = "";
-  if (!cmdRaw) return;
+  if (!raw) return;
 
-  log("User: " + cmdRaw);
+  log("User: " + raw);
 
-  const parts = cmdRaw.split(" ");
+  const parts = raw.split(" ");
   const cmd = parts[0];
   let value = parseFloat(parts[1]);
   if (isNaN(value)) value = 10;
@@ -107,12 +107,13 @@ function run() {
     log("Added whatsnew");
     log('Replaced "wave" To "wave warp"');
     log("Added Values For These 3 Effects");
-    log("- 188Bot v1.0.1");
+    log('Fixed "swirl" Cuz Of Lag');
+    log("- 188Bot v1.0.2");
     return;
   }
 
   if (!imageLoaded) {
-    log("188Bot: Upload an image first.");
+    log("188Bot: Upload An Image");
     return;
   }
 
@@ -121,9 +122,7 @@ function run() {
   else if (cmd === ",pixelate") pixelate(clamp(value, 0, 100));
   else if (cmd === ",wavewarp") waveWarp(clamp(value, -100, 100));
   else if (cmd === ",swirl") swirl(clamp(value, -100, 100));
-  else {
-    log('188Bot: Unknown Command, "Type ,help" For Available Commands.');
-  }
+  else log('188Bot: Unknown Command, "Type ,help" For Available Commands.');
 }
 
 function invert() {
@@ -160,40 +159,51 @@ function pixelate(val) {
 }
 
 function waveWarp(val) {
-  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const src = ctx.getImageData(0, 0, canvas.width, canvas.height);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   for (let y = 0; y < canvas.height; y++) {
     const offset = Math.sin(y / 20) * val;
-    ctx.putImageData(imgData, offset, y, 0, y, canvas.width, 1);
+    ctx.putImageData(src, offset, y, 0, y, canvas.width, 1);
   }
   log("188Bot: Wave Warp Added (" + val + ").");
 }
 
+/* OPTIMIZED SWIRL (NO LAG) */
 function swirl(val) {
   const src = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const dst = ctx.createImageData(canvas.width, canvas.height);
 
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
+  const strength = val / 50;
 
   for (let y = 0; y < canvas.height; y++) {
     for (let x = 0; x < canvas.width; x++) {
       const dx = x - cx;
       const dy = y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      const angle = dist / 300 * (val / 10);
 
-      const sx = Math.cos(angle) * dx - Math.sin(angle) * dy + cx;
-      const sy = Math.sin(angle) * dx + Math.cos(angle) * dy + cy;
+      const angle = dist * strength * 0.002;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+
+      const sx = Math.floor(cos * dx - sin * dy + cx);
+      const sy = Math.floor(sin * dx + cos * dy + cy);
 
       if (sx >= 0 && sy >= 0 && sx < canvas.width && sy < canvas.height) {
-        const i = (Math.floor(sy) * canvas.width + Math.floor(sx)) * 4;
-        ctx.fillStyle = `rgb(${src.data[i]},${src.data[i+1]},${src.data[i+2]})`;
-        ctx.fillRect(x, y, 1, 1);
+        const si = (sy * canvas.width + sx) * 4;
+        const di = (y * canvas.width + x) * 4;
+
+        dst.data[di]     = src.data[si];
+        dst.data[di + 1] = src.data[si + 1];
+        dst.data[di + 2] = src.data[si + 2];
+        dst.data[di + 3] = 255;
       }
     }
   }
+
+  ctx.putImageData(dst, 0, 0);
   log("188Bot: Swirl Added (" + val + ").");
 }
 </script>
