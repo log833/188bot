@@ -94,11 +94,12 @@ function run() {
 
   const parts = raw.split(" ");
   const cmd = parts[0];
+  const text = parts.slice(1).join(" ");
   let value = parseFloat(parts[1]);
   if (isNaN(value)) value = 10;
 
   if (cmd === ",help") {
-    log("188Bot: Commands: invert, grayscale, pixelate [0–100], swirl [-100–100], wavewarp [-100–100], whatsnew.");
+    log("188Bot: Commands: invert, grayscale, pixelate [0–100], swirl [-100–100], wavewarp [-100–100], echo, whatsnew.");
     return;
   }
 
@@ -108,7 +109,17 @@ function run() {
     log('Replaced "wave" To "wave warp"');
     log("Added Values For These 3 Effects");
     log('Fixed "swirl" Cuz Of Lag');
-    log("- 188Bot v1.0.2");
+    log('Added "echo" Command');
+    log("- 188Bot v1.0.3");
+    return;
+  }
+
+  if (cmd === ",echo") {
+    if (!text) {
+      log("188Bot: No Content");
+    } else {
+      log("188Bot: " + text);
+    }
     return;
   }
 
