@@ -211,6 +211,11 @@ function run() {
   if (!raw) return;
 
   userLog(raw);
+  
+  const parts = raw.split(" ");
+  const cmd = parts[0];
+  let val = parseFloat(parts[1]);
+  if (isNaN(val)) val = 10;
 
   if (cmd === ",whatsnew") {
   botLog("UPDATES:");
@@ -221,14 +226,10 @@ function run() {
   botLog('Added "echo" Command');
   botLog("Added PFP For Users & Bot");
   botLog("Added A Start Menu");
-  botLog("- 188Bot v1.0.6");
+  botLog("Fixed Commands When The Bot Wasn't Talking");
+  botLog("- 188Bot v1.0.7");
   return;
 }
-  
-  const parts = raw.split(" ");
-  const cmd = parts[0];
-  let val = parseFloat(parts[1]);
-  if (isNaN(val)) val = 10;
 
   if (cmd === ",help") {
     botLog("Commands: invert, grayscale, pixelate [0–100], swirl [-100–100], wavewarp [-100–100], echo.");
