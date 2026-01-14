@@ -212,6 +212,19 @@ function run() {
 
   userLog(raw);
 
+  if (cmd === ",whatsnew") {
+  botLog("UPDATES:");
+  botLog("Added whatsnew");
+  botLog('Replaced "wave" To "wave warp"');
+  botLog("Added Values For These 3 Effects");
+  botLog('Fixed "swirl" Cuz Of Lag');
+  botLog('Added "echo" Command');
+  botLog("Added PFP For Users & Bot");
+  botLog("Added A Start Menu");
+  botLog("- 188Bot v1.0.6");
+  return;
+}
+  
   const parts = raw.split(" ");
   const cmd = parts[0];
   let val = parseFloat(parts[1]);
