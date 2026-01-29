@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>188Bot Video Edition</title>
+
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
+
+<style>
+body {
+  background: #111;
+  color: white;
+  font-family: Arial, sans-serif;
+  padding: 10px;
+}
+
+#chat {
+  border: 1px solid #444;
+  background: #111;
+  height: 150px;
+  overflow-y: auto;
+  padding: 6px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+input, button {
+  padding: 8px;
+  font-size: 14px;
+}
+
+video {
+  display: block;
+  margin-top: 10px;
+  max-width: 100%;
+  border: 1px solid #555;
+}
+</style>
+</head>
+
+<body>
+
+<h3>188Bot Video Edition</h3>
+
+<input type="file" id="upload" accept="video/*"><br><br>
+
+<div id="chat"></div>
+
+<input id="command" placeholder="Enter Message..." />
+<button onclick="run()">Send</button>
+
+<video id="video" controls></video>
+
+<script>
+const { createFFmpeg, fetchFile } = FFmpeg;
+const ffmpeg = createFFmpeg({ log: false });
+
+const chat = document.getElementById("chat");
+const video = document.getElementById("video");
+
+let videoLoaded = false;
+let currentFile = "input.mp4";
+let step = 0;
+
+function log(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+log("188Bot v1.1");
+
+document.getElementById("upload").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (!ffmpeg.isLoaded()) {
+    log("188Bot: Loading FFmpeg...");
+    await ffmpeg.load();
+  }
+
+  ffmpeg.FS("writeFile", "input.mp4", await fetchFile(file));
+  currentFile = "input.mp4";
+  video.src = URL.createObjectURL(file);
+  videoLoaded = true;
+
+  log("188Bot: Video Uploaded.");
+});
+
+async function applyFFmpeg(args) {
+  step++;
+  const out = `output_${step}.mp4`;
+
+  await ffmpeg.run("-i", currentFile, ...args, out);
+  const data = ffmpeg.FS("readFile", out);
+
+  const url = URL.createObjectURL(new Blob([data.buffer], { type: "video/mp4" }));
+  video.src = url;
+  currentFile = out;
+}
+
+async function run() {
+  const input = document.getElementById("command");
+  const raw = input.value.trim();
+  input.value = "";
+  if (!raw) return;
+
+  log("User: " + raw);
+
+  const parts = raw.split(" ");
+  const cmd = parts[0];
+  const text = parts.slice(1).join(" ");
+  let value = parseFloat(parts[1]);
+  if (isNaN(value)) value = 10;
+
+  if (cmd === ",help") {
+    log("188Bot: Commands: invert, grayscale, pixelate [0–100], swirl [-100–100], wavewarp [-100–100], echo, whatsnew.");
+    return;
+  }
+
+  if (cmd === ",whatsnew") {
+    log("188Bot: Check It In The Original Edition Of 188Bot");
+    log("- 188Bot v1.1");
+    return;
+  }
+
+  if (cmd === ",echo") {
+    if (!text) log("188Bot: Nothing to echo.");
+    else log("188Bot: " + text);
+    return;
+  }
+
+  if (!videoLoaded) {
+    log("188Bot: Upload A Video");
+    return;
+  }
+
+  if (cmd === ",invert") {
+    await applyFFmpeg(["-vf", "negate"]);
+    log("188Bot: Invert Added.");
+  }
+  else if (cmd === ",grayscale") {
+    await applyFFmpeg(["-vf", "format=gray"]);
+    log("188Bot: Grayscale Added.");
+  }
+  else if (cmd === ",pixelate") {
+    const v = clamp(value, 1, 100);
+    await applyFFmpeg(["-vf", `scale=iw/${v}:ih/${v},scale=iw*${v}:ih*${v}:flags=neighbor`]);
+    log("188Bot: Pixelate Added (" + v + ").");
+  }
+  else if (cmd === ",wavewarp") {
+    const v = clamp(value, -100, 100);
+    await applyFFmpeg(["-vf", `geq=p(X+${v}*sin(Y/20),Y)`]);
+    log("188Bot: Wave Warp Added (" + v + ").");
+  }
+  else if (cmd === ",swirl") {
+    const v = clamp(value, -100, 100);
+    await applyFFmpeg(["-vf", `rotate=${v}*PI/180:bilinear=1`]);
+    log("188Bot: Swirl Added (" + v + ").");
+  }
+  else {
+    log('188Bot: Unknown Command, "Type ,help" For Available Commands.');
+  }
+}
+</script>
+
+</body>
+</html>
+
