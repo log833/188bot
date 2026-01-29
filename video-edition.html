@@ -65,7 +65,7 @@ function log(text) {
 }
 
 /* START MENU */
-log("188Bot v1.1.1");
+log("188Bot v1.1.2");
 log("188Bot: Upload a video to begin.");
 log("188Bot: Type ,help for commands.");
 
@@ -104,7 +104,13 @@ async function applyFFmpeg(args) {
   step++;
   const out = `output_${step}.mp4`;
 
-  await ffmpeg.run("-i", currentFile, ...args, out);
+  await ffmpeg.run(
+  "-i", currentFile,
+  "-preset", "ultrafast",
+  "-crf", "28",
+  ...args,
+  out
+);
 
   const data = ffmpeg.FS("readFile", out);
   video.src = URL.createObjectURL(
@@ -136,7 +142,7 @@ sendBtn.onclick = async () => {
 
   if (cmd === ",whatsnew") {
     log("188Bot: Go To The Original Edition");
-    log("- 188Bot v1.1.1");
+    log("- 188Bot v1.1.2");
     return;
   }
 
