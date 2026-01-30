@@ -60,13 +60,37 @@ video {
 
 <script>
 const chat = document.getElementById("chat");
+const canvas = document.getElementById("canvas");
+
+let lastPercent = 0;
+
+ffmpeg.setProgress(({ ratio }) => {
+  // Fix NaN / undefined
+  if (!ratio || ratio <= 0) ratio = 0.01;
+
+  let percent = Math.round(ratio * 100);
+
+  // 🚫 prevent going backwards or sticking at 0
+  if (percent < lastPercent) percent = lastPercent;
+  if (percent === 0) percent = 1;
+
+  lastPercent = percent;
+  progressBar.style.width = percent + "%";
+
+  // ✅ auto-hide at 100%
+  if (percent >= 100) {
+    setTimeout(() => {
+      hideProgress();
+      lastPercent = 0;
+    }, 300);
+  }
+});
+
+const chat = document.getElementById("chat");
 const video = document.getElementById("video");
 const upload = document.getElementById("upload");
 const sendBtn = document.getElementById("send");
-
-const progressBox = document.getElementById("progressBox");
-const progressBar = document.getElementById("progressBar");
-
+  
 function showProgress() {
   progressBar.style.width = "0%";
   progressBox.style.display = "block";
@@ -110,7 +134,7 @@ ffmpeg.setProgress(({ ratio }) => {
 });
 
 /* START MENU */
-log("188Bot v1.1.3");
+log("188Bot v1.1.4");
 log("188Bot: Upload a video to begin.");
 log("188Bot: Type ,help for commands.");
 
@@ -187,7 +211,7 @@ sendBtn.onclick = async () => {
 
   if (cmd === ",whatsnew") {
     log("188Bot: Go To The Original Edition");
-    log("- 188Bot v1.1.3");
+    log("- 188Bot v1.1.4");
     return;
   }
 
