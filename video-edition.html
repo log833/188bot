@@ -45,14 +45,16 @@ video {
 <input type="file" id="upload" accept="video/*"><br><br>
 
 <div id="chat"></div>
-  <div id="progressBox" style="display:none; margin-bottom:8px;">
+
+<div id="progressBox" style="display:none; margin-bottom:8px;">
   <div style="font-size:13px;">Processing…</div>
   <div style="background:#333; height:10px; border-radius:5px; overflow:hidden;">
     <div id="progressBar"
-         style="height:100%; width:0%; background:#4af; transition:width 0.1s;">
+      style="height:100%; width:0%; background:#4af;">
     </div>
   </div>
 </div>
+
 <input id="command" placeholder="Enter Message..." />
 <button id="send">Send</button>
 
@@ -60,37 +62,30 @@ video {
 
 <script>
 const chat = document.getElementById("chat");
-const canvas = document.getElementById("canvas");
-
-let lastPercent = 0;
-
-ffmpeg.setProgress(({ ratio }) => {
-  // Fix NaN / undefined
-  if (!ratio || ratio <= 0) ratio = 0.01;
-
-  let percent = Math.round(ratio * 100);
-
-  // 🚫 prevent going backwards or sticking at 0
-  if (percent < lastPercent) percent = lastPercent;
-  if (percent === 0) percent = 1;
-
-  lastPercent = percent;
-  progressBar.style.width = percent + "%";
-
-  // ✅ auto-hide at 100%
-  if (percent >= 100) {
-    setTimeout(() => {
-      hideProgress();
-      lastPercent = 0;
-    }, 300);
-  }
-});
-
-const chat = document.getElementById("chat");
 const video = document.getElementById("video");
 const upload = document.getElementById("upload");
 const sendBtn = document.getElementById("send");
-  
+const progressBox = document.getElementById("progressBox");
+const progressBar = document.getElementById("progressBar");
+
+function log(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+/* START MENU */
+log("188Bot v1.1.4");
+log("188Bot: Upload a video to begin.");
+log("188Bot: Type ,help for commands.");
+
+let ffmpeg;
+let videoLoaded = false;
+let currentFile = "input.mp4";
+let step = 0;
+let lastPercent = 0;
+
 function showProgress() {
   progressBar.style.width = "0%";
   progressBox.style.display = "block";
@@ -100,57 +95,30 @@ function hideProgress() {
   progressBox.style.display = "none";
 }
 
-function log(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-}
-
-const ffmpeg = new FFmpeg();
-
-let lastPercent = 0;
-
-ffmpeg.setProgress(({ ratio }) => {
-  // Fix NaN / undefined
-  if (!ratio || ratio <= 0) ratio = 0.01;
-
-  let percent = Math.round(ratio * 100);
-
-  // 🚫 prevent going backwards or sticking at 0
-  if (percent < lastPercent) percent = lastPercent;
-  if (percent === 0) percent = 1;
-
-  lastPercent = percent;
-  progressBar.style.width = percent + "%";
-
-  // ✅ auto-hide at 100%
-  if (percent >= 100) {
-    setTimeout(() => {
-      hideProgress();
-      lastPercent = 0;
-    }, 300);
-  }
-});
-
-/* START MENU */
-log("188Bot v1.1.4");
-log("188Bot: Upload a video to begin.");
-log("188Bot: Type ,help for commands.");
-
-let ffmpeg = null;
-let videoLoaded = false;
-let currentFile = "input.mp4";
-let step = 0;
-
 async function loadFFmpeg() {
   if (ffmpeg) return;
-  log("188Bot: Loading Video...");
+
+  log("188Bot: Loading FFmpeg...");
   const { createFFmpeg, fetchFile } = FFmpeg;
-  ffmpeg = createFFmpeg({ log: false });
+  ffmpeg = createFFmpeg({
+    log: false,
+    progress: ({ ratio }) => {
+      let percent = Math.max(1, Math.round((ratio || 0) * 100));
+      if (percent < lastPercent) percent = lastPercent;
+      lastPercent = percent;
+      progressBar.style.width = percent + "%";
+      if (percent >= 100) {
+        setTimeout(() => {
+          hideProgress();
+          lastPercent = 0;
+        }, 300);
+      }
+    }
+  });
+
   await ffmpeg.load();
   ffmpeg.fetchFile = fetchFile;
-  log("188Bot: Video Loaded.");
+  log("188Bot: FFmpeg Loaded.");
 }
 
 /* VIDEO UPLOAD */
@@ -159,12 +127,14 @@ upload.addEventListener("change", async e => {
   if (!file) return;
 
   await loadFFmpeg();
+  showProgress();
 
   ffmpeg.FS("writeFile", "input.mp4", await ffmpeg.fetchFile(file));
   currentFile = "input.mp4";
   video.src = URL.createObjectURL(file);
   videoLoaded = true;
 
+  hideProgress();
   log("188Bot: Video Uploaded.");
 });
 
@@ -172,14 +142,15 @@ upload.addEventListener("change", async e => {
 async function applyFFmpeg(args) {
   step++;
   const out = `output_${step}.mp4`;
+  showProgress();
 
   await ffmpeg.run(
-  "-i", currentFile,
-  "-preset", "ultrafast",
-  "-crf", "28",
-  ...args,
-  out
-);
+    "-i", currentFile,
+    "-preset", "ultrafast",
+    "-crf", "28",
+    ...args,
+    out
+  );
 
   const data = ffmpeg.FS("readFile", out);
   video.src = URL.createObjectURL(
@@ -200,7 +171,6 @@ sendBtn.onclick = async () => {
 
   const parts = raw.split(" ");
   const cmd = parts[0];
-  const text = parts.slice(1).join(" ");
   let value = parseFloat(parts[1]);
   if (isNaN(value)) value = 10;
 
@@ -211,17 +181,17 @@ sendBtn.onclick = async () => {
 
   if (cmd === ",whatsnew") {
     log("188Bot: Go To The Original Edition");
-    log("- 188Bot v1.1.4");
+    log("188Bot: - 188Bot v1.1.5);
     return;
   }
 
   if (cmd === ",echo") {
-    log(text ? "188Bot: " + text : "188Bot: No Content.");
+    log(parts.slice(1).length ? "188Bot: " + parts.slice(1).join(" ") : "188Bot: No Content.");
     return;
   }
 
   if (!videoLoaded) {
-    log("188Bot: Upload A Video");
+    log("188Bot: Upload a video first.");
     return;
   }
 
@@ -249,7 +219,7 @@ sendBtn.onclick = async () => {
     log("188Bot: Swirl Added (" + v + ").");
   }
   else {
-    log('188Bot: Unknown Command, "Type ,help" For Available Commands.');
+    log('188Bot: Unknown Command. Type ,help');
   }
 };
 </script>
