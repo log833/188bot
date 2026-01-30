@@ -2,38 +2,43 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>188Bot Video Edition</title>
+<title>188Bot Video Edition (Mobile Safe)</title>
 
 <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
 
 <style>
 body {
-  background: #111;
-  color: white;
-  font-family: Arial, sans-serif;
-  padding: 10px;
+  background:#111;
+  color:#fff;
+  font-family:Arial,sans-serif;
+  padding:10px;
 }
-
 #chat {
-  border: 1px solid #444;
-  background: #111;
-  height: 160px;
-  overflow-y: auto;
-  padding: 6px;
-  margin-bottom: 8px;
-  font-size: 14px;
+  border:1px solid #444;
+  height:160px;
+  overflow-y:auto;
+  padding:6px;
+  margin-bottom:8px;
+  font-size:14px;
 }
-
-input, button {
-  padding: 8px;
-  font-size: 14px;
+input,button {
+  padding:8px;
+  font-size:14px;
 }
-
 video {
-  display: block;
-  margin-top: 10px;
-  max-width: 100%;
-  border: 1px solid #555;
+  display:block;
+  margin-top:10px;
+  max-width:100%;
+  border:1px solid #555;
+}
+#progressBox {
+  display:none;
+  margin-bottom:8px;
+}
+#progressBar {
+  height:10px;
+  width:0%;
+  background:#4af;
 }
 </style>
 </head>
@@ -46,12 +51,10 @@ video {
 
 <div id="chat"></div>
 
-<div id="progressBox" style="display:none; margin-bottom:8px;">
+<div id="progressBox">
   <div style="font-size:13px;">Processing…</div>
-  <div style="background:#333; height:10px; border-radius:5px; overflow:hidden;">
-    <div id="progressBar"
-      style="height:100%; width:0%; background:#4af;">
-    </div>
+  <div style="background:#333;border-radius:5px;overflow:hidden;">
+    <div id="progressBar"></div>
   </div>
 </div>
 
@@ -62,164 +65,161 @@ video {
 
 <script>
 const chat = document.getElementById("chat");
-const video = document.getElementById("video");
 const upload = document.getElementById("upload");
+const video = document.getElementById("video");
 const sendBtn = document.getElementById("send");
 const progressBox = document.getElementById("progressBox");
 const progressBar = document.getElementById("progressBar");
 
-function log(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
+function log(t){
+  const d=document.createElement("div");
+  d.textContent=t;
+  chat.appendChild(d);
+  chat.scrollTop=chat.scrollHeight;
 }
 
-/* START MENU */
-log("188Bot v1.1.4");
-log("188Bot: Upload a video to begin.");
-log("188Bot: Type ,help for commands.");
+/* START */
+log("188Bot v1.1.6");
+log("188Bot: Upload A Video To Begin.");
+log("188Bot: Type ,help");
 
-let ffmpeg;
+let ffmpeg = null;
 let videoLoaded = false;
 let currentFile = "input.mp4";
 let step = 0;
-let lastPercent = 0;
+let busy = false;
 
-function showProgress() {
-  progressBar.style.width = "0%";
-  progressBox.style.display = "block";
+/* Fake progress (UI only) */
+function showProgress(){
+  progressBar.style.width="0%";
+  progressBox.style.display="block";
+  let p=0;
+  const id=setInterval(()=>{
+    if(p>=90 || !busy){clearInterval(id);return;}
+    p+=5;
+    progressBar.style.width=p+"%";
+  },100);
+}
+function hideProgress(){
+  progressBar.style.width="100%";
+  setTimeout(()=>{
+    progressBox.style.display="none";
+    progressBar.style.width="0%";
+  },200);
 }
 
-function hideProgress() {
-  progressBox.style.display = "none";
-}
-
-async function loadFFmpeg() {
-  if (ffmpeg) return;
-
+/* Load FFmpeg once */
+async function loadFFmpeg(){
+  if(ffmpeg) return;
   log("188Bot: Loading FFmpeg...");
   const { createFFmpeg, fetchFile } = FFmpeg;
-  ffmpeg = createFFmpeg({
-    log: false,
-    progress: ({ ratio }) => {
-      let percent = Math.max(1, Math.round((ratio || 0) * 100));
-      if (percent < lastPercent) percent = lastPercent;
-      lastPercent = percent;
-      progressBar.style.width = percent + "%";
-      if (percent >= 100) {
-        setTimeout(() => {
-          hideProgress();
-          lastPercent = 0;
-        }, 300);
-      }
-    }
-  });
-
+  ffmpeg = createFFmpeg({ log:false });
   await ffmpeg.load();
   ffmpeg.fetchFile = fetchFile;
-  log("188Bot: FFmpeg Loaded.");
+  log("188Bot: FFmpeg Ready.");
 }
 
-/* VIDEO UPLOAD */
-upload.addEventListener("change", async e => {
+/* Upload */
+upload.onchange = async e => {
   const file = e.target.files[0];
-  if (!file) return;
+  if(!file) return;
 
   await loadFFmpeg();
+  busy=true;
   showProgress();
 
-  ffmpeg.FS("writeFile", "input.mp4", await ffmpeg.fetchFile(file));
-  currentFile = "input.mp4";
-  video.src = URL.createObjectURL(file);
-  videoLoaded = true;
+  ffmpeg.FS("writeFile","input.mp4",await ffmpeg.fetchFile(file));
+  currentFile="input.mp4";
+  video.src=URL.createObjectURL(file);
+  videoLoaded=true;
 
   hideProgress();
+  busy=false;
   log("188Bot: Video Uploaded.");
-});
+};
 
-/* APPLY EFFECT */
-async function applyFFmpeg(args) {
-  step++;
-  const out = `output_${step}.mp4`;
+/* Apply effect (MOBILE SAFE) */
+async function applyFFmpeg(args){
+  if(busy){
+    log("188Bot: Busy.");
+    return;
+  }
+  busy=true;
   showProgress();
+  step++;
+  const out=`output_${step}.mp4`;
 
-  await ffmpeg.run(
-    "-i", currentFile,
-    "-preset", "ultrafast",
-    "-crf", "28",
-    ...args,
-    out
-  );
+  try{
+    await ffmpeg.run(
+      "-i",currentFile,
+      "-preset","ultrafast",
+      "-crf","28",
+      ...args,
+      out
+    );
 
-  const data = ffmpeg.FS("readFile", out);
-  video.src = URL.createObjectURL(
-    new Blob([data.buffer], { type: "video/mp4" })
-  );
+    const data=ffmpeg.FS("readFile",out);
+    video.src=URL.createObjectURL(
+      new Blob([data.buffer],{type:"video/mp4"})
+    );
+    currentFile=out;
+    log("188Bot: Effect Added.");
+  }catch(e){
+    console.error(e);
+    log("188Bot: FFmpeg Failed.");
+  }
 
-  currentFile = out;
+  hideProgress();
+  busy=false;
 }
 
-/* COMMAND HANDLER */
+/* Commands */
 sendBtn.onclick = async () => {
-  const input = document.getElementById("command");
-  const raw = input.value.trim();
-  input.value = "";
-  if (!raw) return;
+  const input=document.getElementById("command");
+  const raw=input.value.trim();
+  input.value="";
+  if(!raw) return;
 
-  log("User: " + raw);
+  log("User: "+raw);
 
-  const parts = raw.split(" ");
-  const cmd = parts[0];
-  let value = parseFloat(parts[1]);
-  if (isNaN(value)) value = 10;
+  const p=raw.split(" ");
+  const cmd=p[0];
+  let v=parseFloat(p[1]);
+  if(isNaN(v)) v=10;
 
-  if (cmd === ",help") {
-    log("188Bot: Commands: invert, grayscale, pixelate [0–100], swirl [-100–100], wavewarp [-100–100], echo, whatsnew.");
+  if(cmd===",help"){
+    log("188Bot: invert, grayscale, pixelate [1-100], swirl [-100–100], wavewarp [-100–100], echo");
     return;
   }
 
-  if (cmd === ",whatsnew") {
-    log("188Bot: Go To The Original Edition");
-    log("188Bot: - 188Bot v1.1.5);
+  if(cmd===",echo"){
+    log(p[1] ? "188Bot: "+p.slice(1).join(" ") : "188Bot: No Content.");
     return;
   }
 
-  if (cmd === ",echo") {
-    log(parts.slice(1).length ? "188Bot: " + parts.slice(1).join(" ") : "188Bot: No Content.");
+  if(!videoLoaded){
+    log("188Bot: Upload A Video.");
     return;
   }
 
-  if (!videoLoaded) {
-    log("188Bot: Upload a video first.");
-    return;
+  if(cmd===",invert")
+    await applyFFmpeg(["-vf","negate"]);
+  else if(cmd===",grayscale")
+    await applyFFmpeg(["-vf","format=gray"]);
+  else if(cmd===",pixelate"){
+    v=Math.max(1,Math.min(100,v));
+    await applyFFmpeg(["-vf",`scale=iw/${v}:ih/${v},scale=iw*${v}:ih*${v}:flags=neighbor`]);
   }
-
-  if (cmd === ",invert") {
-    await applyFFmpeg(["-vf", "negate"]);
-    log("188Bot: Invert Added.");
+  else if(cmd===",wavewarp"){
+    v=Math.max(-100,Math.min(100,v));
+    await applyFFmpeg(["-vf",`geq=p(X+${v}*sin(Y/20),Y)`]);
   }
-  else if (cmd === ",grayscale") {
-    await applyFFmpeg(["-vf", "format=gray"]);
-    log("188Bot: Grayscale Added.");
+  else if(cmd===",swirl"){
+    v=Math.max(-100,Math.min(100,v));
+    await applyFFmpeg(["-vf",`rotate=${v}*PI/180`]);
   }
-  else if (cmd === ",pixelate") {
-    const v = Math.max(1, Math.min(100, value));
-    await applyFFmpeg(["-vf", `scale=iw/${v}:ih/${v},scale=iw*${v}:ih*${v}:flags=neighbor`]);
-    log("188Bot: Pixelate Added (" + v + ").");
-  }
-  else if (cmd === ",wavewarp") {
-    const v = Math.max(-100, Math.min(100, value));
-    await applyFFmpeg(["-vf", `geq=p(X+${v}*sin(Y/20),Y)`]);
-    log("188Bot: Wave Warp Added (" + v + ").");
-  }
-  else if (cmd === ",swirl") {
-    const v = Math.max(-100, Math.min(100, value));
-    await applyFFmpeg(["-vf", `rotate=${v}*PI/180:bilinear=1`]);
-    log("188Bot: Swirl Added (" + v + ").");
-  }
-  else {
-    log('188Bot: Unknown Command. Type ,help');
+  else{
+    log("188Bot: Unknown Command.");
   }
 };
 </script>
